@@ -1,2 +1,31 @@
 # Recursive Valuation
- Recursively values a funky bond
+We recursively value a Funky Bond.
+
+We are given that a Funky Bond is a bond that pays a semiannual coupon at a fixed annual rate on any remaining principal. Its face amount is $100 (million) and it matures at year 20. It makes scheduled payments of $5 (million) every six months beginning in period 21. The client can elect to "double up" any principal payment, increasing a payment to $10 (million) and accelerating principal repayment. If principal payments are ahead of schedule, the client can also elect to skip a principal payment. We create code for finding the fair coupon of the Funky Bond that makes the value today equal to par. Additionally, using the fair coupon, we find the Funky Bond's duration and the combined value (in dollars)  of the options to double up and/or defer principal payments. 
+
+Explanation of Code: 
+
+We created the recursive $ValueFunkyBond$ function first, which will be thoroughly explained below. This function values a 20 year Funky Bond. We are able to find the current price at time 0 by evaluating $ValueFunkyBond(0,0,20)$. Then, to find the fair coupon, we set the range of the possible values to be from 0% to 100%. The code utilizes interval bisection to find when the difference in today's Funky Bond value and par value, $100 million, is less than a cent. 
+
+To calculate the combined value (in dollars) of the options to double up and/or defer payments using the fair coupon, it is equal to the difference between the Funky Bond with no option to defer or double up on principal payments and the lowest value of the Funky Bond which does have those options. We already have the latter which is calculated by our $ValueFunkyBond$ function, so we created a $ValueBond$ function to value the former. The $ValueBond$ function works similarly to the $ValueFunkyBond$ function except it has a constant stream of $5 (million) principal repayment beginning in period 21 and ending in period 40. Thus, the bond life is always till maturity. After implementing this function, we can easily calculate the the combined value (in dollars) of the options to double up and/or defer payments using the fair coupon. 
+
+Our last step is calculating Funky Bond's duration with the fair coupon rate. We can calculate it as follows:
+
+ $D \thickapprox \frac{-1}{P(r)}*\frac{P(r +\Delta r) - P(r -\Delta r)}{2 \Delta r}$
+
+We take $\Delta r$ to be $.25\%$ and have $P(r)$ as the present value of our Funky Bond using the fair coupon rate. Now we need to find $P(r \pm \Delta r)$. These are the present values of the Funky Bond, with the fair coupon rate, when the par curve is shifted up or down by $25$ basis points. Thus, we allocate more memory and make the new par curves where our short and long rate are the previous value + .25% when shifting up, and the previous value -.25% when shifting down. The hump and short rate volatility remain the same. We then can plug in the values necessary to calculate the duration of the Funky Bond with a specified market environment.
+
+The ValueFunkyBond Recursive Function: 
+
+To begin the recursive process of finding the value of our Funky Bond, we set all of our indicator variables to $0$. More specifically, the indicator for whether the Funky Bond has been valued at period $n$, state $i$, and remaining principal $j$, is set to be $0. We set the indicator at (n,i,j) to be equal to 1, once we have computed the value. Our boundary condition is set to when there is no more remaining principal (j = 0). If the boundary condition is met, the future value of the Funky Bond is set to $0 and the indicator variable is set to 1.
+
+After setting those conditions, we check if calculations have been computed at (n,i,j). If no calculations are indicated, we find the current period. If we are in periods 0-19, we only pay the coupon; which amounts to the semiannual coupon rate multiplied by the remaining principal (always 100 million in these periods). Additionally, the next step at period $n+1$, also pays the same coupon. Thus, the value of the bond at (n,i,j) equals the discount of the coupon payment plus the value of the bond at period $n+1$ for state $i+1$ and $i-1$ with remaining principal $j$ which is $20 million.
+
+When we are in period 20 or above, it is calculated similarly. Period 20 is included because we discount future cash flows and principal repayment is included in period 21. We differentiate to include the coupon and principal payments in the future value of our cash flows. We have the option to pay 5 million, pay 10 million, or simply skip the principal repayment. When we are at node (n,i,j), we can move to the up or down step with equal probability, but the remaining principal at either step can be decreased by 0, 5 or 10. Thus, we have a total of 9 possibilities. We want the combination that generates the lowest value of the bond, in terms of cost to the issuer. Thus, we have a variable that holds the minimum of the value of the bond at (n,i,j) called $min$. To calculate the minimum value of the bond at this node, we created a nested for loop. The first loop, a, decrements from 2 to 0 and indicates the principal repayment of 5*a (million) for the up step. The second loop, b , also decrements from 2 to 0, but it indicates the payment of 5*b (million) for the down step. However, some possibilities are unfeasible; such as having a principal repayment of 10 million when we have 5 million in remaining principal. We also cannot elect to skip a payment if we are not ahead of schedule, which is when our remaining principal is greater than the difference between 40 and the period we are currently in. In these cases, we simply move onto the next iteration of the loop. The cash flow for the up step is calculated as  $c1 = coupon *5*j + 5*a$ , which is the coupon payment plus the principal repayment, where the variable coupon is our semiannual coupon rate. Similarly, the cash flow for the down step is  $c2 = coupon*5*j + 5*b$ . 
+Thus, the value of the bond at (n,i,j) is calculated as follows: 
+
+    value = d[n][i] * ( 0.5 * (c1 + ValueFunkyBond(n+1, i+1,j-a)) + 
+                0.5* (c2 + ValueFunkyBond(n+1, i-1, j-b)));
+
+
+After going through the loops, we take the minimum value obtained, which outputs the value of our Funky Bond at (n,i,j). We then, can set the indicator variable to be 1 showing we have completed the calculations at (n,i,j).  
